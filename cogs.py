@@ -1,6 +1,6 @@
 from discord.ext import commands
 from pathlib import Path
-import aiohttp
+import requests
 
 RULES_CHANNEL_ID = 554695025485807647
 
@@ -23,9 +23,7 @@ class AtlasCog(commands.Cog):
 
     @commands.command()
     async def nations(self, ctx):
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://mc-atlas.com/nation/api/nation/list') as resp:
-                response = await resp.json()
+        response = requests.get('https://mc-atlas.com/nation/api/nation/list').json()
         if response['Status'] == 'OK':
             nations_names = [nation['nationName'] for nation in response['Data']['nationList']]
             await ctx.send('*These are all the nations on Atlas according to our records:' + '\n'.join([
