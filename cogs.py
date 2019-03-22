@@ -32,12 +32,12 @@ class AtlasCog(commands.Cog):
             await ctx.send('*Hmmm, I can\'t seem to find our records at the moment, check back later!')
 
     @commands.command()
-    async def nation(self, ctx, name):
+    async def nation(self, ctx, *, name: str):
         response = requests.get('https://mc-atlas.com/nation/api/nation/list', params={'ShowCitizens': True, 'ShowTowns': True}).json()
         if response['Status'] == 'OK':
             for nation in response['Data']['nationList']:
                 if nation['nationName'].lower().strip() == name.lower().strip():
-                    owner = ', '.join([p for p in nation['citizens'] if p['isLeader']])
+                    owner = ', '.join([p['userName'] for p in nation['citizens'] if p['isLeader']])
                     if not owner:
                         owner = 'N/A'
                     break
