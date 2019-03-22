@@ -3,6 +3,7 @@ from pathlib import Path
 import requests
 
 RULES_CHANNEL_ID = 554695025485807647
+GOV_DOCS_CHANNEL_ID = 553795615042306079
 
 class WelcomeCog(commands.Cog):
     
@@ -13,7 +14,8 @@ class WelcomeCog(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         rules = member.guild.get_channel(RULES_CHANNEL_ID)
-        await member.send(self.welcome_message.format(member=member, guild=member.guild, rules=rules))
+        gov_docs = member.guild.get_channel(GOV_DOCS_CHANNEL_ID)
+        await member.send(self.welcome_message.format(member=member, guild=member.guild, rules=rules, gov_docs=gov_docs))
 
 
 class AtlasCog(commands.Cog):
