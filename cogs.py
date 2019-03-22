@@ -33,7 +33,7 @@ class AtlasCog(commands.Cog):
 
     @commands.command()
     async def nation(self, ctx, name):
-        response = requests.get('https://mc-atlas.com/nation/api/nation/list').json()
+        response = requests.get('https://mc-atlas.com/nation/api/nation/list', params={'ShowCitizens': True}).json()
         if response['Status'] == 'OK':
             for nation in response['Data']['nationList']:
                 if nation['nationName'].lower().strip() == name.lower().strip():
