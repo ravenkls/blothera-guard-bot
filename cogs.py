@@ -33,7 +33,7 @@ class AtlasCog(commands.Cog):
 
     @commands.command()
     async def nation(self, ctx, name):
-        response = requests.get('https://mc-atlas.com/nation/api/nation/list', params={'ShowCitizens': True}).json()
+        response = requests.get('https://mc-atlas.com/nation/api/nation/list', params={'ShowCitizens': True, 'ShowTowns': True}).json()
         if response['Status'] == 'OK':
             for nation in response['Data']['nationList']:
                 if nation['nationName'].lower().strip() == name.lower().strip():
@@ -43,11 +43,11 @@ class AtlasCog(commands.Cog):
                     break
             else:
                 return await ctx.send(f'I couldn\'t find any nation by the name of {name}')
-            string = (f'**{nation["nationName"]}**\n'
-                      f'Owner: {owner}'
+            string = (f'*Heres what I found on* ***{nation["nationName"]}***\n\n'
+                      f'Owner: {owner}\n'
                       f'Number of Towns: {len(nation["towns"])}\n'
                       f'Number of Citizens: {len(nation["citizens"])}')
-        
+            await ctx.send(string)
 
 def setup(bot):
     with open(Path('messages/welcome/welcome_message.txt')) as msg_file:
