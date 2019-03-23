@@ -108,7 +108,6 @@ class General(commands.Cog):
             error_embed.description = "Usage: `{}`".format(self.get_usage(ctx.command))
             error_embed.set_footer(text=str(exception))
         else:
-            self.log(str(exception), "ERROR")
             error_embed.title = "Error"
             error_embed.description = "`" + str(exception) + "`"
         if error_embed.description is not None:

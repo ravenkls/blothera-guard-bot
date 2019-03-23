@@ -43,48 +43,6 @@ class MusicNotPlaying(Exception):
     pass
 
 
-class ChartsPlaylist:
-    cached_charts = []
-
-    def __init__(self, loop=None):
-        self.loop = loop or asyncio.get_event_loop()
-        self.ytdl = youtube_dl.YoutubeDL(YOUTUBE_DL_OPTIONS)
-        self.data = self.get_charts()
-
-    def __str__(self):
-        return "Top 100 Charts"
-
-    def __repr__(self):
-        return "<ChartsPlaylist: {}>".format(self.__str__())
-
-    def get_charts(self):
-        response = requests.get(
-            "http://www.officialcharts.com/charts/singles-chart/")
-        soup = BeautifulSoup(response.text, "html.parser")
-        songs = soup.findAll("div", {"class": "title-artist"})
-        song_title = [
-            s.find("div", {"class": "title"}).text.strip() for s in songs]
-        song_artist = [
-            s.find("div", {"class": "artist"}).text.strip() for s in songs]
-        charts = [{"title": title, "artist": artist}
-                  for title, artist in zip(song_title, song_artist)]
-        return charts
-
-    async def songs(self):
-        youtube = YouTube(loop=self.loop)
-        if len(self.cached_charts) == 100:
-            for song in self.cached_charts:
-                yield song
-        else:
-            for song in self.data:
-                song_title = song.get("title")
-                song_artist = song.get("artist")
-                query = "{} - {song_artist}".format(song_title, song_artist)
-                video = await youtube.search(query)
-                self.cached_charts.append(video)
-                yield video
-
-
 class YouTube:
     def __init__(self, *, loop):
         """Handles all YouTube video and playlists information"""
@@ -407,13 +365,13 @@ class Music(commands.Cog):
         self.voice_states = {}
         self.youtube = YouTube(loop=self.bot.loop)
 
-    # def on_voice_state_update(self, member, before, after):
-    #     state = self.voice_states.get(member.guild)
-    #     if state and state.voice and state.voice.channel:
-    #         if len(after.members) == 1:
-    #             state.pause()
-    #         elif len(before.members) == 1 and len(after.members) > 1:
-    #             state.resume()
+    def on_voice_state_update(self, member, before, after):
+        state = self.voice_states.get(member.guild)
+        if state and state.voice and state.voice.channel:
+            if len(after.members) == 1:
+                state.pause()
+            elif len(before.members) == 1 and len(after.members) > 1:
+                state.resume()
 
     def get_voice_state(self, guild):
         """Gets the VoiceState object associated with the guild"""
@@ -440,51 +398,6 @@ class Music(commands.Cog):
             await ctx.send("No servers are using voice currently")
         else:
             await ctx.send("```" + "\n".join(response) + "```")
-
-    @commands.command()
-    @commands.guild_only()
-    async def charts(self, ctx):
-        """Grabs the top 100 charts and adds them to the playlist"""
-        if ctx.author.voice is None:
-            return await ctx.send("You aren't in a voice channel")
-
-        playlist = ChartsPlaylist(loop=self.bot.loop)
-
-        message = await ctx.send(content="Should I add `{}` to the queue?".format(playlist))
-        await message.add_reaction("\U00002705")  # check mark
-        await message.add_reaction("\U0000274E")  # cross mark
-
-        def check(reaction, user):
-            """Checks whether the user reacted and whether the reaction was valid"""
-            if user == ctx.author:
-                # cross or check mark or link
-                return str(reaction) in ("\U00002705", "\U0000274E")
-            return False
-
-        try:
-            reaction, user = await self.bot.wait_for("reaction_add", timeout=30.0, check=check)
-        except asyncio.TimeoutError:
-            return await ctx.send("User failed to respond in 30 seconds")
-        finally:
-            await message.delete()
-
-        if str(reaction) == "\U0000274E":  # if the user reacted with a cross mark (i.e. no)
-            return
-
-        if ctx.author.voice is None:
-            raise discord.ClientException("You aren't in a voice channel")
-
-        message = await ctx.send("Unpacking `{}`...".format(playlist))
-
-        state = self.get_voice_state(ctx.guild)
-        await state.join_voice_channel(ctx.author.voice.channel)
-        async for song in playlist.songs():  # unpack the songs into the queue as a batch job
-            success = state.add_song_to_playlist(
-                song, context=ctx, batch_job=True)
-            if not success:
-                break
-        state.batch_job = False  # end the batch job
-        await message.edit(content="`{}` has been unpacked".format(playlist))
 
     @commands.command(hidden=True)
     @commands.guild_only()
