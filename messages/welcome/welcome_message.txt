@@ -1,8 +1,8 @@
-:crossed_swords: **Kingdom of Blothera** :crossed_swords:
+:crossed_swords: **{guild.name}** :crossed_swords:
 
 *You are stopped by a guard of Blothera*
 
-**Halt!** {member.name} you are entering territory occupied by the {guild.name}.
+**Halt!** {member.name} you are entering territory occupied by the Kingdom of Blothera.
 These lands are governed by Blotherian laws, it is a requirement to read through the {rules.mention}
 Welcome to the Kingdom.
 
