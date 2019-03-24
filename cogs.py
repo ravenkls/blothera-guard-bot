@@ -1,5 +1,6 @@
 from discord.ext import commands
 from pathlib import Path
+from bs4 import BeautifulSoup
 import datetime
 import requests
 import humanize
@@ -186,6 +187,27 @@ class Atlas(commands.Cog):
                 embed.add_field(name="Citizens", value=last_seen_string, inline=False)
 
                 await ctx.send(content='*Let me just find my notes...*', embed=embed)
+
+    @commands.command()
+    async def leaderboard(self, ctx, category='top'):
+        response = requests.get('https://www.mc-atlas.com/leaderboards/Overall')
+        soup = BeautifulSoup(response.text, 'lxml')
+        if category == 'top':
+            leaderboard = soup.select_one('.large-leaderboard')
+        else:
+            leaderboard = [x for x in soup.findAll('div', class_='leaderboard-mini') if x.select_one('h1').text.lower() == category.lower()]
+            if not leaderboard:
+                options = ['top'] + [x.select_one('h1').text for x in soup.findAll('div', class_='leaderboard-mini')]
+                return await ctx.send('*I couldn\'t find any leaderboards by that category...\nThe available leaderboard types are:*\n' + 
+                                    '\n'.join('`'+x.lower()+'`' for x in options))
+            leaderboard = leaderboard[0]
+        nations_lis = leaderboard.findAll('li')
+        nations = [(n.select_one('mark').text, n.select_one('small').text) for n in nations_lis]
+
+        embed = discord.Embed(description='\n'.join(f'**{i}.** {n[0]} - {n[1]}' for i, n in enumerate(nations, start=1)), colour=0xEAEE57)
+        embed.set_author(name=leaderboard.select_one('h1').text, icon_url='https://www.mc-atlas.com' + leaderboard.select_one('img')['src'])
+        await ctx.send(content='*This is the current leaderboard according to our records...*', embed=embed)
+
 
 def setup(bot):
     with open(Path('messages/welcome/welcome_message.txt')) as msg_file:
