@@ -1,15 +1,36 @@
 from discord.ext import commands
 from pathlib import Path
 from bs4 import BeautifulSoup
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib import style
+from io import BytesIO
 import datetime
 import requests
 import humanize
 import discord
 import inspect
+import os
 
 
 RULES_CHANNEL_ID = 554695025485807647
 GOV_DOCS_CHANNEL_ID = 553795615042306079
+LORD_ROLE_ID = 553616009572122625
+ATLAS_USER = os.environ.get('ATLAS_USER')
+ATLAS_PASS = os.environ.get('ATLAS_PASS')
+BLOTHERA_KINGDOM_ID = 277
+
+
+style.use('dark_background')
+
+
+async def is_lord(ctx):
+    if ctx.guild.id == 553615313045028865:
+        if ctx.author.top_role >= ctx.guild.get_role(LORD_ROLE_ID):
+            return True
+    return False
+
+
 
 
 class General(commands.Cog):
@@ -190,6 +211,7 @@ class Atlas(commands.Cog):
 
     @commands.command()
     async def leaderboard(self, ctx, category='top'):
+        """Retrieves the Atlas leaderboard"""
         response = requests.get('https://www.mc-atlas.com/leaderboards/Overall')
         soup = BeautifulSoup(response.text, 'lxml')
         if category == 'top':
@@ -208,6 +230,62 @@ class Atlas(commands.Cog):
         embed.set_author(name=leaderboard.select_one('h1').text, icon_url='https://www.mc-atlas.com' + leaderboard.select_one('img')['src'])
         await ctx.send(content='*This is the current leaderboard according to our records...*', embed=embed)
 
+    async def get_coffers_graph(self):
+        session = requests.Session()
+        login_page = session.get('https://mc-atlas.com/user/login')
+        soup = BeautifulSoup(login_page.text, 'lxml')
+
+        form_build_id = soup.select_one('input[name=form_build_id]')['value']
+        form_id = soup.select_one('input[name=form_id]')['value']
+        op = soup.select_one('input[name=op]')['value']
+
+        data = {'name': ATLAS_USER,
+                'pass': ATLAS_PASS,
+                'form_build_id': form_build_id,
+                'form_id': form_id,
+                'op': op}
+
+        login_request = session.post('https://mc-atlas.com/user/login', data=data,
+                                     allow_redirects=False)
+        
+        if login_request.status_code == 302:
+            params = {'MinTime': 0, 'NationId': BLOTHERA_KINGDOM_ID}
+            coffers = session.get('https://mc-atlas.com/nation/v2/api/getcofferlog', params=params).json()
+        else:
+            print('We\'re having trouble logging into Atlas')
+            quit()
+
+        history = coffers['Data']['CofferHistory']
+        coffer_logs = [h['NationCoffers'] for h in history]
+        date_logs = [datetime.datetime.fromtimestamp(int(str(h['Timestamp'])[:10])) for h in history]
+
+        fig = plt.figure()
+
+        ax = fig.add_subplot(111)
+
+        ax.set_title('Kingdom of Blothera Coffers')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Coffers')
+        ax.plot(date_logs, coffer_logs, label='Coffers')
+
+        loc = mdates.AutoDateLocator()
+        loc.intervald[mdates.HOURLY] = [24]
+        ax.xaxis.set_major_locator(loc)
+        fmter = mdates.DateFormatter('%d/%m/%Y')
+        ax.xaxis.set_major_formatter(fmter)
+
+        image = BytesIO()
+        fig.savefig(image, format='png', transparent=True)
+        image.seek(0)
+        return coffer_logs[0], image
+
+    @commands.command()
+    @commands.check(is_lord)
+    async def blothera(self, ctx, request):
+        """Retrieves information on Blothera (Lords only)"""
+        if request == 'coffers':
+            amount, coffer_graph = await self.get_coffers_graph()
+            await ctx.send(content=f'*The nation currently stands at {amount:,} coffers*', file=discord.File(coffer_graph, filename='blothera_coffers.png'))
 
 def setup(bot):
     with open(Path('messages/welcome/welcome_message.txt')) as msg_file:

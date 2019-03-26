@@ -12,6 +12,7 @@ humanize = "*"
 bs4 = "*"
 youtube-dl = "*"
 lxml = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.7"
