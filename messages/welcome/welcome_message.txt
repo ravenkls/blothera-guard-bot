@@ -6,6 +6,6 @@
 These lands are governed by Blotherian laws, it is a requirement to read through the {rules.mention}
 Welcome to the Kingdom.
 
-All citizens of Blothera must read our laws, refer to {gov_docs.mention}
+**All citizens of Blothera must read our laws, refer to {gov_docs.mention}**
 
 *The guard opens the gates*
