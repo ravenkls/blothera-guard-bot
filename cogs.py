@@ -299,7 +299,7 @@ class Atlas(commands.Cog):
         """Retrieves information on Blothera (Lords only)"""
         if request.lower() == 'coffers':
             amount, coffer_graph = await self.get_coffers_graph()
-            await ctx.send(content=f'*The nation currently stands at {amount:,} coffers*', file=discord.File(coffer_graph, filename='blothera_coffers.png'))
+            await ctx.send(content=f'*The nation\'s coffers currently stands at {amount:,}*', file=discord.File(coffer_graph, filename='blothera_coffers.png'))
         elif request.split()[0].lower() == 'town':
             try:
                 town_name = request[4:].lower().strip()
