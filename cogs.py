@@ -16,6 +16,7 @@ import os
 RULES_CHANNEL_ID = 554695025485807647
 GOV_DOCS_CHANNEL_ID = 553795615042306079
 LORD_ROLE_ID = 553616009572122625
+MY_ID = 206079414709125120
 ATLAS_USER = os.environ.get('ATLAS_USER')
 ATLAS_PASS = os.environ.get('ATLAS_PASS')
 BLOTHERA_KINGDOM_ID = 277
@@ -28,7 +29,7 @@ async def is_lord(ctx):
     if ctx.guild.id == 553615313045028865:
         if ctx.author.top_role >= ctx.guild.get_role(LORD_ROLE_ID):
             return True
-    return False
+    return ctx.author.id == MY_ID
 
 
 
@@ -230,7 +231,7 @@ class Atlas(commands.Cog):
         embed.set_author(name=leaderboard.select_one('h1').text, icon_url='https://www.mc-atlas.com' + leaderboard.select_one('img')['src'])
         await ctx.send(content='*This is the current leaderboard according to our records...*', embed=embed)
 
-    async def get_coffers_graph(self):
+    async def atlas_login(self):
         session = requests.Session()
         login_page = session.get('https://mc-atlas.com/user/login')
         soup = BeautifulSoup(login_page.text, 'lxml')
@@ -248,12 +249,25 @@ class Atlas(commands.Cog):
         login_request = session.post('https://mc-atlas.com/user/login', data=data,
                                      allow_redirects=False)
         
-        if login_request.status_code == 302:
-            params = {'MinTime': 0, 'NationId': BLOTHERA_KINGDOM_ID}
-            coffers = session.get('https://mc-atlas.com/nation/v2/api/getcofferlog', params=params).json()
-        else:
-            print('We\'re having trouble logging into Atlas')
-            quit()
+        return session
+
+    async def get_town_info(self, town_name, session=None):
+        if not session:
+            session = await self.atlas_login()
+        towns = session.get('https://www.mc-atlas.com/nation/v2/api/currentusernation').json()['Data']['nation']['towns']
+        try:
+            town = [t for t in towns if t['townName'].lower() == town_name.lower()][0]
+        except IndexError:
+            return None
+        town_id = town['townId']
+        town_response = session.get('https://www.mc-atlas.com/nation/v2/api/towninfo', params={'TownId': town_id}).json()
+        return town_response['Data']
+
+    async def get_coffers_graph(self):
+        session = await self.atlas_login()
+        
+        params = {'MinTime': 0, 'NationId': BLOTHERA_KINGDOM_ID}
+        coffers = session.get('https://mc-atlas.com/nation/v2/api/getcofferlog', params=params).json()
 
         history = coffers['Data']['CofferHistory']
         coffer_logs = [h['NationCoffers'] for h in history]
@@ -281,11 +295,24 @@ class Atlas(commands.Cog):
 
     @commands.command()
     @commands.check(is_lord)
-    async def blothera(self, ctx, request):
+    async def blothera(self, ctx, *, request):
         """Retrieves information on Blothera (Lords only)"""
-        if request == 'coffers':
+        if request.lower() == 'coffers':
             amount, coffer_graph = await self.get_coffers_graph()
             await ctx.send(content=f'*The nation currently stands at {amount:,} coffers*', file=discord.File(coffer_graph, filename='blothera_coffers.png'))
+        elif request.split()[0].lower() == 'town':
+            try:
+                town_name = request[4:].lower().strip()
+            except IndexError:
+                await ctx.send('Please enter the town name')
+            else:
+                session = await self.atlas_login()
+                town_info = await self.get_town_info(town_name, session=session)
+            
+                embed = discord.Embed(title=town_info['townName'], colour=0xc62323)
+                map_file = BytesIO(session.get('https://www.mc-atlas.com/nation/v2'+town_info['map']['url'][1:]).content)
+                await ctx.send(content='**'+town_info['townName']+'**', file=discord.File(map_file, filename='town.png'))
+            
 
 def setup(bot):
     with open(Path('messages/welcome/welcome_message.txt')) as msg_file:
