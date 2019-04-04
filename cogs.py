@@ -283,7 +283,7 @@ class Atlas(commands.Cog):
         for n, log in enumerate(history):
             if 'Player' in log['Description']:
                 dt = datetime.datetime.fromtimestamp(int(str(log['Timestamp'])[:10])).strftime('%d/%m/%y')
-                player = log["Metadata"]["PlayerName"]
+                player = log["Metadata"]["PlayerName"].replace('__', '\_\_')
                 total = log["NationCoffers"]
                 delta = abs(int(total) - int(history[n+1]['NationCoffers']))
                 if log['Description'] == 'Player Deposit':
