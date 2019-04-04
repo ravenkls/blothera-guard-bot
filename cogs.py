@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import style
 from io import BytesIO
+from mcstatus import MinecraftServer
 import datetime
 import requests
 import humanize
@@ -271,6 +272,34 @@ class Atlas(commands.Cog):
         town_response = session.get('https://www.mc-atlas.com/nation/v2/api/towninfo', params={'TownId': town_id}).json()
         return town_response['Data']
 
+    async def get_coffers_log(self):
+        session = await self.atlas_login()
+
+        params = {'MinTime': 0, 'NationId': BLOTHERA_KINGDOM_ID}
+        coffers = session.get('https://mc-atlas.com/nation/v2/api/getcofferlog', params=params).json()
+        history = coffers['Data']['CofferHistory']
+        nice_logs = []
+        char_count = 0
+        for n, log in enumerate(history):
+            if 'Player' in log['Description']:
+                dt = datetime.datetime.fromtimestamp(int(str(log['Timestamp'])[:10])).strftime('%d/%m/%y')
+                player = log["Metadata"]["PlayerName"]
+                total = log["NationCoffers"]
+                delta = abs(int(total) - int(history[n+1]['NationCoffers']))
+                if log['Description'] == 'Player Deposit':
+                    nice_logs.append(f'**{dt} >** {player} added {delta} to the coffers ({total})')
+                    char_count += len(f'**{dt} >** {player} added {delta} to the coffers ({total})')
+                elif log['Description'] == 'Player Withdraw':
+                    nice_logs.append(f'**{dt} >** {player} removed {delta} from the coffers ({total})')
+                    char_count += len(f'**{dt} >** {player} removed {delta} from the coffers ({total})')
+            if char_count > 1850:
+                print(char_count)
+                nice_logs.pop(-1)
+                break
+        
+        return '**Blothera Coffers (Players Only)**\n' + '\n'.join(nice_logs)
+
+
     async def get_coffers_graph(self):
         session = await self.atlas_login()
         
@@ -308,6 +337,9 @@ class Atlas(commands.Cog):
         if request.lower() == 'coffers':
             amount, coffer_graph = await self.get_coffers_graph()
             await ctx.send(content=f'*The nation\'s coffers currently stands at {amount:,}*', file=discord.File(coffer_graph, filename='blothera_coffers.png'))
+        elif request.lower() == 'playerlogs':
+            logs = await self.get_coffers_log()
+            await ctx.send(logs)
         elif request.split()[0].lower() == 'town':
             try:
                 town_name = request[4:].lower().strip()
